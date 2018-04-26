@@ -1,24 +1,57 @@
 const crypto = require('crypto');
 const secp256k1 = require('secp256k1');
 const fs = require('fs')
-
-//config
+const readline = require('readline');
+//configs
 const algotype = "sha256";
 const keyfile = "keys.json"
 
-
+const rl = readline.createInterface({
+		  input: process.stdin,
+		  output: process.stdout
+	});
 
 //get script arguments
 if (process.argv[2] == "newkeys") {
 	getNewKeys();
 }
+let message, sig, publickey;
 
 if (process.argv[2] == "sign") {
-	if (process.argv[3].length>1) {
-		getMessageSign(process.argv[3]);
-	}
-	else console.log(`Comand sign need 1 more argument - stirng`)
+	rl.question('Please, paste you message: ', (answer) => {
+	   if (answer.length > 1) {
+	   		getMessageSign(answer)
+			  		
+			   }
+	});
+
 }
+
+
+
+if (process.argv[2] == "verify") {
+
+	
+	let message, sig, publickey;
+	rl.question('Please, paste message: ', (answer) => {
+	   if (answer.length > 1) {
+	   		message = answer;
+	   		rl.question('Please, paste sig: ', (answer) => {
+			   if (answer.length > 1) {
+			   		sig = answer;
+			   		rl.question('Please, paste public key or push Enter to use previously generated key: ', (answer) => {
+					   if (answer.length > 2) {
+					   		publickey = answer;
+					   		getMessageVeryfy (message, sig, publicKey)
+						   } else getMessageVeryfy (message, sig)
+						});
+			   }
+			});
+	   }
+	});
+
+}
+
 
 //generetating and write public/privatekey
 function getNewKeys() {
@@ -28,7 +61,7 @@ function getNewKeys() {
 	} while (!secp256k1.privateKeyVerify(privateKey));
 	// get the public key in a compressed format
 	const publicKey = secp256k1.publicKeyCreate(privateKey);
-	console.log(privateKey);
+
 	let keys = {
 		public: publicKey.toString("hex"),
 		private: privateKey.toString("hex") 
@@ -48,7 +81,7 @@ function getNewKeys() {
 	secretKey: ${privateKey.toString("hex")} 
 	keys were written to keys.json
 	`);
-  
+  rl.close();
 });
 }
 /*end getNewKeys() */
@@ -60,7 +93,7 @@ function getMessageSign(message) {
 	fs.readFile('keys.json', 'utf8', function (err, data) {
    if (err) throw err;
       keys = JSON.parse(data);
-     
+     		
       		let messagehash = digest(message);
       		//bufered our secret key
       		const secret = new Buffer(keys.private, "hex");
@@ -68,26 +101,34 @@ function getMessageSign(message) {
 			let sig = sigObj.signature;
 			console.log(`You message: ${message};
 ${algotype} hash: ${messagehash.toString("hex")};
-You dugital sign: ${sig.toString("hex")}`
+You digital sign: ${sig.toString("hex")}`
 				)
+			rl.close();
    });
 /* end Sign message*/	
 
 }
+/*verified message*/
+function getMessageVeryfy (message, sig, publicKey = null) {
+	//if publicKey is nulled, get this from file
+	if (!publicKey) {
+		fs.readFile('keys.json', 'utf8', function (err, data) {
+   			if (err) throw err;
+      		keys = JSON.parse(data);
+     		
+      		let messagehash = digest(message);
+      		//bufered our secret key
+      		const public = new Buffer(keys.public, "hex");
+
+      		let verified = secp256k1.verify(messagehash, Buffer(sig, "hex"), public);
+			console.log(`Verified: ${verified};`);
+   });	
+	}
+	rl.close();
+}
+
 
 function digest(str, algo = "sha256") {
   return crypto.createHash(algo).update(str).digest();
 }
 
-function utf8Length(s)
-{
-    var l = 0;
-    for (var i = 0; i < s.length; i++) {
-        var c = s.charCodeAt(i);
-        if (c <= 0x007f) l += 1;
-        else if (c <= 0x07ff) l += 2;
-        else if (c >= 0xd800 && c <= 0xdfff)  l += 2;  // surrogates
-        else l += 3;
-    }
-    return l;
-}
