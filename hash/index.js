@@ -19,7 +19,7 @@ let message, sig, publickey;
 
 if (process.argv[2] == "sign") {
 	rl.question('Please, paste you message: ', (answer) => {
-	   if (answer.length > 1) {
+	   if (answer.length) {
 	   		getMessageSign(answer)
 			  		
 			   }
@@ -34,15 +34,15 @@ if (process.argv[2] == "verify") {
 	
 	let message, sig, publickey;
 	rl.question('Please, paste message: ', (answer) => {
-	   if (answer.length > 1) {
+	   if (answer.length) {
 	   		message = answer;
 	   		rl.question('Please, paste sig: ', (answer) => {
-			   if (answer.length > 1) {
+			   if (answer.length) {
 			   		sig = answer;
 			   		rl.question('Please, paste public key or push Enter to use previously generated key: ', (answer) => {
-					   if (answer.length > 2) {
+					   if (answer.length) {
 					   		publickey = answer;
-					   		getMessageVeryfy (message, sig, publicKey)
+					   		getMessageVeryfy (message, sig, publickey)
 						   } else getMessageVeryfy (message, sig)
 						});
 			   }
@@ -111,22 +111,26 @@ You digital sign: ${sig.toString("hex")}`
 /*verified message*/
 function getMessageVeryfy (message, sig, publicKey = null) {
 	//if publicKey is nulled, get this from file
+	let verified;
 	if (!publicKey) {
 		fs.readFile('keys.json', 'utf8', function (err, data) {
    			if (err) throw err;
-      		keys = JSON.parse(data);
-     		
-      		let messagehash = digest(message);
-      		//bufered our secret key
-      		const public = new Buffer(keys.public, "hex");
-
-      		let verified = secp256k1.verify(messagehash, Buffer(sig, "hex"), public);
-			console.log(`Verified: ${verified};`);
+      		keys = JSON.parse(data);      		
+			verified = verify(message, sig, keys.public)
    });	
+	} else {
+		verified = verify(message, sig, publicKey)
 	}
+console.log(`Verified: ${verified}`)
 	rl.close();
 }
 
+function verify(mess, sig, pk) {
+	signature = new Buffer(sig, "hex");
+	publickey = new Buffer(pk, "hex");
+	messhash = digest(mess);
+	return secp256k1.verify(messhash, signature, publickey);
+}
 
 function digest(str, algo = "sha256") {
   return crypto.createHash(algo).update(str).digest();
